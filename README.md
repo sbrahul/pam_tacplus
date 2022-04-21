@@ -57,6 +57,7 @@ on variety of operating systems.
 | `acct_all` | session | if multiple servers are supplied, pam\_tacplus will send accounting start/stop packets to all servers on the list |
 | `service` | account, session | *string* TACACS+ service for authorization and accounting |
 | `protocol` | account, session | *string* TACACS+ protocol for authorization and accounting |
+| `conf` | ALL | *string* path to the conf file having options, instead of providing the options in the pam file itself |
 
 Semantics of these options only make sense in the context of the
 [RFC 8907 (the TACACS+ specification)](https://datatracker.ietf.org/doc/html/rfc8907) &mdash; for example,

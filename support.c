@@ -34,6 +34,8 @@
 
 #endif
 
+#include <errno.h>
+
 tacplus_server_t tac_srv[TAC_PLUS_MAXSERVERS];
 unsigned int tac_srv_no = 0;
 
@@ -281,10 +283,73 @@ static void set_tac_srv_key(unsigned int srv_no, const char *key)
     }
 }
 
+static int _pam_conf_parse(const char* conf_file)
+{
+#define MAX_OPTIONS_IN_FILE 50
+    FILE *fp = NULL;
+    char *p = NULL;
+    char buffer[256] = {0};
+    char *saveptr = NULL, *token = NULL;
+    const char* options[MAX_OPTIONS_IN_FILE] = {NULL};
+    const char* delims = " \t\n\r";
+    int index = 0, len = 0;
+    int ctrl = 0;
+
+    _pam_log(LOG_DEBUG, "%s: Conf file - %s", __FUNCTION__, conf_file); 
+
+    fp = fopen(conf_file, "r");
+    if (!fp)
+    {
+        _pam_log(LOG_ERR, "Conf file opening failed, errno: %s", strerror(errno));
+        return 0;
+    }
+
+    while (!feof(fp) && (fgets(buffer, sizeof buffer, fp) != NULL) &&
+           (index < MAX_OPTIONS_IN_FILE))
+    {
+        p = buffer;
+
+        /* Skip empty spaces at the beginning of line */
+        while ((*p == ' ') || (*p == '\t'))
+        {
+            ++p;
+        }
+
+        /* Skip blank lines and comments */
+        if ((*p == '\n') || (*p == '\r') || (*p == '#'))
+        {
+            continue;
+        }
+
+        /* Start tokenizing and save to options array */
+        token = strtok_r(p, delims, &saveptr);
+        while (token != NULL)
+        {
+            options[index] = strdup(token);
+            ++index;
+            token = strtok_r(NULL, delims, &saveptr);
+        }
+    }
+
+    /* Call _pam_parse() to parse options */
+    ctrl = _pam_parse(index, options);
+
+    /* Free the options memory */
+    for (len = 0; len < index; ++len)
+    {
+        free((void *) options[len]);
+    }
+
+    fclose(fp);
+
+    return ctrl;
+}
+
 int _pam_parse(int argc, const char **argv)
 {
     int ctrl = 0;
     const char *current_secret = NULL;
+    static int conf_call_depth = 0;
 
     /* otherwise the list will grow with each call */
     memset(tac_srv, 0, sizeof(tacplus_server_t) * TAC_PLUS_MAXSERVERS);
@@ -310,6 +375,16 @@ int _pam_parse(int argc, const char **argv)
         }
         else if (!strcmp(*argv, "try_first_pass")) {
             ctrl |= PAM_TAC_TRY_FIRST_PASS;
+        }
+        /*
+         * While parsing conf file, _pam_parse() is called again.
+         * To prevent another conf file being defined and parsed,
+         * set the call depth.
+         */
+        else if (!strncmp(*argv, "conf=", 5) && (conf_call_depth == 0)) {
+            conf_call_depth = 1;
+            ctrl |= _pam_conf_parse(*argv + 5);
+            conf_call_depth = 0;
         } else if (!strncmp(*argv, "service=", strlen("service="))) { /* author & acct */
             xstrncpy(tac_service, *argv + strlen("service="), sizeof(tac_service) - 1);
         } else if (!strncmp(*argv, "protocol=", strlen("protocol="))) { /* author & acct */
