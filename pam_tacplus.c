@@ -408,7 +408,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 				status = PAM_AUTH_ERR;
 				communicating = 0;
 
-                    _pam_log(LOG_ERR, "auth failed: %d", tac_status);
+                    _pam_log(LOG_INFO, "auth failed: %d", tac_status);
 
 				break;
 

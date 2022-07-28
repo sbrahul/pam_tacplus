@@ -426,7 +426,7 @@ int _pam_parse(int argc, const char **argv)
                     (close_bracket = strchr(server_buf, ']')) != NULL)
                 { /* Check for URI syntax */
                     server_name = server_buf + 1;
-                    _pam_log(LOG_ERR,
+                    _pam_log(LOG_DEBUG,
                              "reading server address as: %s ",
                              server_name);
                     port = strchr(close_bracket, ':');
